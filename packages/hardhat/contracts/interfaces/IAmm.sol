@@ -3,13 +3,13 @@ pragma solidity 0.8.17;
 
 interface IAmm {
   /// LP functions
-  function deposit(address token, uint256 amount) external;
+  function deposit(uint256 amount) external returns (uint256);
 
-  function withdraw(address token, uint256 amount) external;
+  function withdraw(uint256 amount) external returns (uint256, uint256);
 
   /// Swap functions
-  function swapTokenIn(address from, address to, uint256 amountIn) external;
+  function swapAtoB(uint256 amountIn) external returns (uint256);
 
-  function swapTokenOut(address from, address to, uint256 amountOut) external;
+  function swapBtoA(uint256 amountOut) external returns (uint256);
 
 }
