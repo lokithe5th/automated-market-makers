@@ -8,22 +8,46 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
 
 contract ConstantProductAMM is IAmm {
+  /**
+   * The two tokens that require a liquidity pool
+   */
   IERC20 private tokenA;
   IERC20 private tokenB;
 
+  /**
+   * The total liquidity, `k`
+   */
   uint256 private totalLiquidity;
+  
+  /**
+   * Tracks user liquidity
+   */
   mapping(address => uint256) private liquidity;
 
+  /**
+   * The fees charged per swap
+   */
   uint256 private fee;
 
+  /**
+   * Basis points are useful in financial math
+   */
   uint256 private constant BASIS_POINTS = 10_000;
 
+  /**
+   * @notice Initializes the LP
+   * @param _tokenA The address of the token against which the liquidity is calculated
+   * @param _amountA The amount of token A to transfer to the LP
+   * @param _tokenB The address of the secondary token
+   * @param _amountB The amount of token B to transfer to the LP
+   * @return uint256 The total liquidity in the LP
+   */
   function init(
     IERC20 _tokenA,
     uint256 _amountA,
     IERC20 _tokenB,
     uint256 _amountB
-  ) external returns (uint256 totalLiquidity) {
+  ) external returns (uint256) {
     require(_amountA == _amountB, "Require equal amounts of tokens");
     tokenA = _tokenA;
     tokenB = _tokenB;
@@ -35,8 +59,15 @@ contract ConstantProductAMM is IAmm {
     
     require(tokenA.transferFrom(msg.sender, address(this), _amountA), "Init failed");
     require(tokenB.transferFrom(msg.sender, address(this), _amountB), "Init failed");
+
+    return totalLiquidity;
   }
 
+  /**
+   * @notice Allows permissionless provision of liquidity
+   * @param amount The number of both token A and token B to provide
+   * @return liquidityMinted The amount of liquidity minted by the deposit
+   */
   function deposit(uint256 amount) external returns (uint256 liquidityMinted) {
     uint256 tokenAReserve = tokenA.balanceOf(address(this));
     /// The amount of liquidity in the contract * newTokens / tokenAReserve
@@ -50,6 +81,13 @@ contract ConstantProductAMM is IAmm {
     require(tokenB.transferFrom(msg.sender, address(this), amount), "Transfer B failed");
   }
 
+  /**
+   * @notice Allows liquidity providers to withdraw their provided tokens
+   * @dev The withdrawal is proportionate to `amount` relative to `totalLiquidity`
+   * @param amount The amount of liquidity to withdraw
+   * @return tokenAAmount The amount of token A returned to the user
+   * @return tokenBAmount The amount of token B returned to the user
+   */
   function withdraw(uint256 amount) external returns (uint256 tokenAAmount, uint256 tokenBAmount) {
     require(liquidity[msg.sender] >= amount, "Exceeded liquidity");
 
@@ -67,6 +105,11 @@ contract ConstantProductAMM is IAmm {
     require(tokenB.transfer(msg.sender, tokenBAmount), "Transfer Failed");
   }
 
+  /**
+   * @notice Swaps from token A to token B
+   * @param amountIn The amount of token A to swap for token B
+   * @return tokensReceived The amount of token B received
+   */
   function swapAtoB(uint256 amountIn) external returns (uint256 tokensReceived) {
     tokensReceived = price(amountIn, tokenA.balanceOf(address(this)), tokenB.balanceOf(address(this)));
 
@@ -74,6 +117,11 @@ contract ConstantProductAMM is IAmm {
     tokenB.transfer(msg.sender, tokensReceived);
   }
 
+  /**
+   * @notice Swaps from token B to token A
+   * @param amountIn The amount of token B to swap for token A
+   * @return tokensReceived The amount of token B received
+   */
   function swapBtoA(uint256 amountIn) external returns (uint256 tokensReceived) {
     tokensReceived = price(amountIn, tokenA.balanceOf(address(this)), tokenB.balanceOf(address(this)));
 
@@ -81,6 +129,13 @@ contract ConstantProductAMM is IAmm {
     tokenA.transfer(msg.sender, tokensReceived);
   }
 
+  /**
+   * @notice Provides the amount of tokens returned for a given `inputAmount`
+   * @param inputAmount The amount of a given token to provide to the LP
+   * @param inputReserve The amount of the input tokens in the LP reserve
+   * @param outputReserve The amount of output tokens in the LP reserve
+   * @return uint256 The amount of output tokens to receive given the input params and reserves
+   */
   function price(
     uint256 inputAmount,
     uint256 inputReserve,
@@ -88,7 +143,7 @@ contract ConstantProductAMM is IAmm {
   ) public view returns (uint256) {
     inputAmount *= fee;
     uint256 numerator = inputAmount * outputReserve;
-    uint256 denominator = (inputReserve * 1_000) + inputAmount;
+    uint256 denominator = (inputReserve * BASIS_POINTS) + inputAmount;
     return numerator / denominator;
   }
 
