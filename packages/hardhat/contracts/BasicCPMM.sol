@@ -1,13 +1,22 @@
 pragma solidity 0.8.17;
 //SPDX-License-Identifier: MIT
 
+/**
+ * @notice Basic Constant Product Market Maker
+ * @author lourens linde
+ * @dev This is an implementation of a very basic constant product market maker
+ *      1) It holds `k=xy`
+ *      2) It implements token swap capability (with fee collection)
+ *      3) It allows permissionless deposit and withdrawal
+ * 
+ * Note: For educational purposes only and not for production use!
+ */
+
 import "hardhat/console.sol";
 import "./interfaces/IAmm.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import "@openzeppelin/contracts/access/Ownable.sol"; 
-// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
 
-contract ConstantProductAMM is IAmm {
+contract BasicCPMM is IAmm {
   /**
    * The two tokens that require a liquidity pool
    */
@@ -141,12 +150,20 @@ contract ConstantProductAMM is IAmm {
     uint256 inputReserve,
     uint256 outputReserve
   ) public view returns (uint256) {
-    inputAmount *= fee;
+    inputAmount = (fee > 0) ? inputAmount * fee : inputAmount;
     uint256 numerator = inputAmount * outputReserve;
-    uint256 denominator = (inputReserve * BASIS_POINTS) + inputAmount;
+    uint256 denominator = (fee > 0) ? (inputReserve * BASIS_POINTS) + inputAmount : inputReserve + inputAmount;
     return numerator / denominator;
   }
 
+  /**
+   * @notice Allows a user to set the fee
+   * @dev Fees are expressed in Basis Points
+   * @param newFee The new fee for token swaps
+   */
+  function setFee(uint256 newFee) external {
+    fee = newFee;
+  }
 
   // to support receiving ETH by default
   receive() external payable {}
