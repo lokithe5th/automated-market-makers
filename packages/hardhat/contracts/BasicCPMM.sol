@@ -107,8 +107,8 @@ contract BasicCPMM is IAmm {
     tokenAAmount = (tokenAReserve * amount) / totalLiquidity;
     tokenBAmount = (tokenBReserve * amount) / totalLiquidity;
 
-    liquidity[msg.sender] -= tokenAAmount;
-    totalLiquidity -= tokenAAmount;
+    liquidity[msg.sender] -= amount;
+    totalLiquidity -= amount;
 
     require(tokenA.transfer(msg.sender, tokenAAmount), "Transfer Failed");
     require(tokenB.transfer(msg.sender, tokenBAmount), "Transfer Failed");
@@ -163,6 +163,10 @@ contract BasicCPMM is IAmm {
    */
   function setFee(uint256 newFee) external {
     fee = newFee;
+  }
+
+  function viewProvidedLiquidity(address provider) external view returns (uint256) {
+    return liquidity[provider];
   }
 
   // to support receiving ETH by default
